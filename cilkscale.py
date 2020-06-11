@@ -19,8 +19,8 @@ def main():
   out_csv = "out.csv"
   out_plot = "out.pdf"
 
-  bin_instrument = "./fib"
-  bin_vanilla = "./fib-clean"
+  bin_instrument = args.instrumented
+  bin_vanilla = args.vanilla
   bin_args = args.args
 
   # generate data
