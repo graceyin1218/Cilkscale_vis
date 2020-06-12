@@ -13,10 +13,14 @@ def plot(data, out_plot="plot.pdf"):
   axs[0].plot(data["num_workers"], data["greedy_runtime"], "c", label="Greedy scheduling bound")
   axs[0].plot(data["num_workers"], data["span_runtime"], "y", label="Span bound")
 
+  num_workers = data["num_workers"][-1]
+
   axs[0].set_xlabel("Num workers")
   axs[0].set_ylabel("Runtime")
   axs[0].set_title("Execution time")
-  axs[0].set_aspect(1/axs[0].get_data_ratio())
+  axs[0].set(xlim=[0,num_workers], ylim=[0,num_workers])
+  #axs[0].set_aspect(1/axs[0].get_data_ratio())
+  #axs[0].set_aspect(1)
   
   """
   print("obs_speedup")
@@ -36,7 +40,9 @@ def plot(data, out_plot="plot.pdf"):
   axs[1].set_xlabel("Num workers")
   axs[1].set_ylabel("Speedup")
   axs[1].set_title("Speedup")
-  axs[1].set_aspect(1/axs[1].get_data_ratio())
+  axs[1].set(xlim=[0,num_workers], ylim=[0,num_workers])
+  #axs[1].set_aspect(1/axs[1].get_data_ratio())
+  #axs[1].set_aspect(1)
 
   plt.tight_layout(pad=3.0)
   plt.legend(loc="upper right")
