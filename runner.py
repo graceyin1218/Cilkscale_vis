@@ -2,17 +2,35 @@ import subprocess
 import sys
 import os
 import time
+import csv
 
 helper_dir = "."
+
 
 def get_cilk_tool_helper_dir():
   out,err = run_command("which clang")
   path =  ("/".join(str(out, 'utf-8').split("/")[:-1])).strip()
   return path+"/cilk_tool_helpers"
 
-def get_parallelism(bin_instrument, bin_args):
-  out,err = run_command(bin_instrument + " " + " ".join(bin_args))
+# generate csv with parallelism numbers
+def get_parallelism(bin_instrument, bin_args, out_csv):
+  out,err = run_command("CILKSCALE_OUT=" + out_csv + " " + bin_instrument + " " + " ".join(bin_args))
+  """
+  with open("PAR_TEMP_CSV", "rbU") as csvfile:
+    reader = csv.DictReader(csvfile)
+    first = True
+    for row in reader:
+      if first:
+        first = False
+        continue
+      print(row["parallelism"])
+      return float(row["parallelism"])
+  print("Failed to calculate parallelism")
+
+  
   return float((str(err,'utf-8')).split('parallelism')[-1].strip())
+  """
+  return
 
 def run_command(cmd, asyn = False):
   proc = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -26,26 +44,31 @@ def run_command(cmd, asyn = False):
 def get_n_cpus():
   return len(get_cpu_ordering())
 
+def benchmark_tmp_output(n):
+  return ".out.bench." + str(n) + ".csv"
+
 def run_on_p_workers(P, rcommand):
   cpu_ordering = get_cpu_ordering()
   cpu_online = cpu_ordering[:P]
+  """
   cpu_offline = cpu_ordering[P:]
 
   for x in cpu_offline:
     #run_command("taskset -c "+",".join([str(p) for (p,m) in cpu_offline])+" nice -n 19 "+helper_dir+"/busywait.sh &", True)
     print("taskset -c "+str(x[0])+" nice -n 19 "+helper_dir+"/busywait.sh &", True)
     run_command("taskset -c "+str(x[0])+" nice -n 19 "+helper_dir+"/busywait.sh &", True)
+  """
 
   time.sleep(0.1)
-  #print cpu_online
-  #print cpu_offline
   rcommand = "taskset -c " + ",".join([str(p) for (p,m) in cpu_online]) + " " + rcommand
-  #print rcommand
   print(rcommand)
-  proc = subprocess.Popen(['CILK_NWORKERS=' + str(P) + ' ' + rcommand], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  bench_out_csv = benchmark_tmp_output(P)
+  proc = subprocess.Popen(['CILK_NWORKERS=' + str(P) + ' ' + "CILKSCALE_OUT=" + bench_out_csv + " " + rcommand], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   out,err=proc.communicate()
   err = str(err, "utf-8")
   print(err)
+
+  """
   run_command("pkill -f busywait.sh")
   for line in err.splitlines():
     #if line.endswith('seconds time elapsed'):
@@ -59,17 +82,20 @@ def run_on_p_workers(P, rcommand):
     #  line=line.replace('real ', '').strip()
     #  val = float(line)
     #  return val
+  """
 
 # upper bound P-worker runtime for program with work T1 and parallelism PAR 
 def bound_runtime(T1, PAR, P):
   Tp = T1/P + (1.0-1.0/P)*T1/PAR
   return Tp
 
+"""
 def get_hyperthreads():
     command = "for cpunum in $(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -s -d, -f2- | tr ',' '\n' | sort -un); do echo $cpunum; done"
     proc = subprocess.Popen([command], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out,err=proc.communicate()
     print(out)
+"""
 
 def get_cpu_ordering():
   out,err = run_command("lscpu --parse")
@@ -98,14 +124,63 @@ def get_cpu_ordering():
     ret.append((x[2], x[0]))
   return ret
 
-def run(bin_instrument, bin_vanilla, bin_args):
-  parallelism = get_parallelism(bin_instrument, bin_args)
-  print(parallelism)
+def run(bin_instrument, bin_bench, bin_args, out_csv="out.csv"):
+  # get parallelism
+  get_parallelism(bin_instrument, bin_args, out_csv)
+
+  # get benchmark runtimes
+  NCPUS = get_n_cpus()
+
+  print("Generating Scalability Data for " + str(NCPUS) + " cpus.")
+
+  # this will be prepended with CILK_NWORKERS and CILKSCALE_OUT in run_on_p_workers
+  # any tmp files will be destroyed
+  run_command = bin_bench + " " + " ".join(bin_args)
+  results = dict()
+  for i in range(1, NCPUS+1):
+    results[i] = run_on_p_workers(i, run_command)
+
+  new_rows = []
+
+  # read data from out_csv
+  with open(out_csv, "r") as out_csv_file:
+    rows = out_csv_file.readlines()
+    new_rows = rows.copy()
+    for i in range(len(new_rows)):
+      new_rows[i] = new_rows[i].strip("\n")
+
+    # join all the csv data
+    for i in range(1, NCPUS+1):
+      with open(benchmark_tmp_output(i), "r") as csvfile:
+        reader = csv.reader(csvfile, delimiter=',')
+        row_num = 0
+        for row in reader:
+          if row_num == 0:
+            col_header = str(i) + "c " + row[1].strip()
+            new_rows[row_num] += "," + col_header
+          else:
+            # second col contains runtime
+            time = row[1].strip()
+            new_rows[row_num] += "," + time
+          row_num += 1
+      os.remove(benchmark_tmp_output(i))
+
+    for i in range(len(new_rows)):
+      new_rows[i] += "\n"
+
+  # write the joined data to out_csv
+  with open(out_csv, "w") as out_csv_file:
+    out_csv_file.writelines(new_rows)
+
+
+
+  """
+
 
   #RUN_COMMAND = "perf stat " + " ".join(sys.argv[1:])
   # strace -c ?
   #RUN_COMMAND =  "time -p " + " ".join(sys.argv[1:]) #"time -p ./fib 40"
-  RUN_COMMAND =  "time -p " + bin_vanilla + " " + " ".join(bin_args)#" ./fib-clean 40"
+  RUN_COMMAND =  "time -p " + bin_bench + " " + " ".join(bin_args)#" ./fib-clean 40"
   print(RUN_COMMAND)
 
 
@@ -164,4 +239,5 @@ def run(bin_instrument, bin_vanilla, bin_args):
   #data.close()
 
   return d
+  """
 
