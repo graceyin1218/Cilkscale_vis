@@ -4,13 +4,6 @@ import os
 import time
 import csv
 
-helper_dir = "."
-
-def get_cilk_tool_helper_dir():
-  out,err = run_command("which clang")
-  path =  ("/".join(str(out, 'utf-8').split("/")[:-1])).strip()
-  return path+"/cilk_tool_helpers"
-
 # generate csv with parallelism numbers
 def get_parallelism(bin_instrument, bin_args, out_csv):
   out,err = run_command("CILKSCALE_OUT=" + out_csv + " " + bin_instrument + " " + " ".join(bin_args))
