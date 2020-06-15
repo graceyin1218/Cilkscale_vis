@@ -1,10 +1,72 @@
+import csv
 import matplotlib
 import matplotlib.pyplot as plt
 
-def plot(data, out_plot="plot.pdf"):
+PARALLELISM_COL = 3
+BENCHMARK_COL_START = 5 # actually 6, but we're adding 1-indexed cpu counts
+
+# upper bound P-worker runtime for program with work T1 and parallelism PAR 
+def bound_runtime(T1, PAR, P):
+  Tp = T1/P + (1.0-1.0/P)*T1/PAR
+  return Tp
+
+def get_row_data(out_csv, tag):
+  data = {}
+  data["num_workers"] = []
+  data["obs_runtime"] = []
+  data["perf_lin_runtime"] = []
+  data["greedy_runtime"] = []
+  data["span_runtime"] = []
+  data["obs_speedup"] = []
+  data["perf_lin_speedup"] = []
+  data["greedy_speedup"] = []
+  data["span_speedup"] = []
+
+  with open(out_csv, "r") as out_csv_file:
+    rows = csv.reader(out_csv_file, delimiter=",")
+
+    first = True
+    num_cpus = 0
+
+    for row in rows:
+      if first:
+        # get num cpus (extracts num_cpus from, for example, "32c time (seconds)" )
+        num_cpus = int(row[-1].split()[0][:-1])
+        print(num_cpus)
+
+        first = False
+        continue
+
+      if row[0] == tag:
+        # collect data from this row of the csv file
+        parallelism = float(row[PARALLELISM_COL])
+        single_core_runtime = float(row[BENCHMARK_COL_START+1])
+
+        for i in range(1, num_cpus+1):
+          data["num_workers"].append(i)
+
+          data["obs_runtime"].append(float(row[BENCHMARK_COL_START+i]))
+          data["perf_lin_runtime"].append(single_core_runtime/i)
+          data["greedy_runtime"].append(bound_runtime(single_core_runtime, parallelism, i))
+          data["span_runtime"].append(single_core_runtime/parallelism)
+
+          data["obs_speedup"].append(single_core_runtime/float(row[BENCHMARK_COL_START+i]))
+          data["perf_lin_speedup"].append(1.0*i)
+          data["greedy_speedup"].append(single_core_runtime/(bound_runtime(single_core_runtime, parallelism, i)))
+          data["span_speedup"].append(parallelism)
+        break
+  return data
+
+# by default, plots the last row (i.e. overall execution)
+def plot(out_csv="out.csv", out_plot="plot.pdf", tag=""):
   print("Generate plot")
   matplotlib.use('PDF')
   fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12,6))
+
+  data = get_row_data(out_csv, tag)
+
+  print(data)
+
 
   # legend shared between subplots.
   # TODO: make colors correspond between the subplots, so the legend makes sense for both

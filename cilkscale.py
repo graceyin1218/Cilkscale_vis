@@ -37,7 +37,9 @@ def main():
 
   # generate plot
   # (out_plot defaults to plot.pdf)
-  plot(out_csv, out_plot)
+  # (tag defaults to "", i.e. last row of csv)
+  tag = ""
+  plot(out_csv, out_plot, tag)
 
 if __name__ == '__main__':
   main()

@@ -84,10 +84,12 @@ def run_on_p_workers(P, rcommand):
     #  return val
   """
 
+"""
 # upper bound P-worker runtime for program with work T1 and parallelism PAR 
 def bound_runtime(T1, PAR, P):
   Tp = T1/P + (1.0-1.0/P)*T1/PAR
   return Tp
+"""
 
 """
 def get_hyperthreads():
