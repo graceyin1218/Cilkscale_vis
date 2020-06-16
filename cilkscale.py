@@ -14,8 +14,8 @@ def main():
   args = ap.parse_args()
   print(args)
 
-  out_csv = args.output_csv
-  out_plot = args.output_plot
+  out_csv = args.output_csv or "out.csv"
+  out_plot = args.output_plot or "plot.pdf"
 
   bin_instrument = args.cilkscale
   bin_bench = args.cilkscale_benchmark
