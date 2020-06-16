@@ -123,7 +123,7 @@ def plot(out_csv="out.csv", out_plot="plot.pdf", rows_to_plot=[0]):
     axs[r,1].set_title(tag + " speedup")
     axs[r,1].set(xlim=[0,num_workers], ylim=[0,num_workers])
 
-    axs[r,1].legend(loc="upper right")
+    axs[r,1].legend(loc="upper left")
 
   plt.savefig(out_plot)
 
