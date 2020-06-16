@@ -110,7 +110,7 @@ def plot(out_csv="out.csv", out_plot="plot.pdf", rows_to_plot=[0]):
     axs[r,0].set_xlabel("Num workers")
     axs[r,0].set_ylabel("Runtime")
     axs[r,0].set_title(tag + " execution time")
-    axs[r,0].set(xlim=[0,num_workers], ylim=[0,num_workers])
+    axs[r,0].set_aspect(1.0/axs[r,0].get_data_ratio())
 
 
     axs[r,1].plot(data["num_workers"], data["obs_speedup"], "mo", label="Observed", linestyle='None', markersize = 5)
