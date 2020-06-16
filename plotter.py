@@ -2,9 +2,6 @@ import csv
 import matplotlib
 import matplotlib.pyplot as plt
 
-PARALLELISM_COL = 3
-BENCHMARK_COL_START = 5 # actually 6, but we're adding 1-indexed cpu counts
-
 # upper bound P-worker runtime for program with work T1 and parallelism PAR
 def bound_runtime(T1, PAR, P):
   Tp = T1/P + (1.0-1.0/P)*T1/PAR
@@ -36,16 +33,26 @@ def get_row_data(out_csv, rows_to_plot):
     row_num = 0
     num_cpus = 0
 
+    par_col = 0
+    bench_col_start = 0
+
     for row in rows:
       if row_num == 0:
         # get num cpus (extracts num_cpus from, for example, "32c time (seconds)" )
         num_cpus = int(row[-1].split()[0][:-1])
+        # find parallelism col and start of benchmark cols
+        for i in range(len(row)):
+          if row[i] == "parallelism":
+            par_col = i
+          elif row[i].startswith("1c"):
+            # subtract 1 because we will add 1-indexed cpu counts to this value
+            bench_col_start = i-1
 
       elif row_num in rows_to_plot:
         # collect data from this row of the csv file
         tag = row[0]
-        parallelism = float(row[PARALLELISM_COL])
-        single_core_runtime = float(row[BENCHMARK_COL_START+1])
+        parallelism = float(row[par_col])
+        single_core_runtime = float(row[bench_col_start+1])
 
         data = {}
         data["num_workers"] = []
@@ -61,12 +68,12 @@ def get_row_data(out_csv, rows_to_plot):
         for i in range(1, num_cpus+1):
           data["num_workers"].append(i)
 
-          data["obs_runtime"].append(float(row[BENCHMARK_COL_START+i]))
+          data["obs_runtime"].append(float(row[bench_col_start+i]))
           data["perf_lin_runtime"].append(single_core_runtime/i)
           data["greedy_runtime"].append(bound_runtime(single_core_runtime, parallelism, i))
           data["span_runtime"].append(single_core_runtime/parallelism)
 
-          data["obs_speedup"].append(single_core_runtime/float(row[BENCHMARK_COL_START+i]))
+          data["obs_speedup"].append(single_core_runtime/float(row[bench_col_start+i]))
           data["perf_lin_speedup"].append(1.0*i)
           data["greedy_speedup"].append(single_core_runtime/(bound_runtime(single_core_runtime, parallelism, i)))
           data["span_speedup"].append(parallelism)
