@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 
 # upper bound P-worker runtime for program with work T1 and parallelism PAR
 def bound_runtime(T1, PAR, P):
-  Tp = T1/P + (1.0-1.0/P)*T1/PAR
+  # We scale the span term by 1.7 based on the span coefficient in the
+  # Cilkview paper.
+  Tp = T1/P + (1.0-1.0/P)*1.7*T1/PAR
   return Tp
 
 def sanitize_rows_to_plot(out_csv, rows_to_plot):
@@ -42,7 +44,7 @@ def get_row_data(out_csv, rows_to_plot):
         num_cpus = int(row[-1].split()[0][:-1])
         # find parallelism col and start of benchmark cols
         for i in range(len(row)):
-          if row[i] == "parallelism":
+          if row[i] == "burdened_parallelism":
             par_col = i
           elif row[i].startswith("1c"):
             # subtract 1 because we will add 1-indexed cpu counts to this value
@@ -102,7 +104,7 @@ def plot(out_csv="out.csv", out_plot="plot.pdf", rows_to_plot=[0]):
     # legend shared between subplots.
     axs[r,0].plot(data["num_workers"], data["obs_runtime"], "mo", label="Observed", linestyle='None', markersize = 5)
     axs[r,0].plot(data["num_workers"], data["perf_lin_runtime"], "g", label="Perfect linear speedup")
-    axs[r,0].plot(data["num_workers"], data["greedy_runtime"], "c", label="Greedy scheduling bound")
+    axs[r,0].plot(data["num_workers"], data["greedy_runtime"], "c", label="Burdened-dag bound")
     axs[r,0].plot(data["num_workers"], data["span_runtime"], "y", label="Span bound")
 
     num_workers = data["num_workers"][-1]
@@ -115,7 +117,7 @@ def plot(out_csv="out.csv", out_plot="plot.pdf", rows_to_plot=[0]):
 
     axs[r,1].plot(data["num_workers"], data["obs_speedup"], "mo", label="Observed", linestyle='None', markersize = 5)
     axs[r,1].plot(data["num_workers"], data["perf_lin_speedup"], "g", label="Perfect linear speedup")
-    axs[r,1].plot(data["num_workers"], data["greedy_speedup"], "c", label="Greedy scheduling bound")
+    axs[r,1].plot(data["num_workers"], data["greedy_speedup"], "c", label="Burdened-dag bound")
     axs[r,1].plot(data["num_workers"], data["span_speedup"], "y", label="Span bound")
 
     axs[r,1].set_xlabel("Num workers")
